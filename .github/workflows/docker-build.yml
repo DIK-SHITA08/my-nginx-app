@@ -1,0 +1,36 @@
+name: Docker Image Build
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-docker-image:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Build Docker image
+      run: docker build -t my-nginx-app .
+
+    - name: Check build status
+      run: |
+        if [ $? -ne 0 ]; then
+          echo "::error::Docker image build failed. Creating GitHub issue..."
+          TOKEN=$GITHUB_TOKEN
+          REPO_API_URL=$(curl -sS -H "Authorization: token $TOKEN" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY" | jq -r '.url')
+
+          ISSUE_BODY="{
+            \"title\": \"Docker image build failed\",
+            \"body\": \"The Docker image build has failed. Please investigate and fix the issues.\",
+            \"labels\": [\"bug\"]
+          }"
+
+          curl -sS -H "Authorization: token $TOKEN" -H "Content-Type: application/json" \
+            -X POST -d "$ISSUE_BODY" "$REPO_API_URL/issues"
+          exit 1
+        fi
